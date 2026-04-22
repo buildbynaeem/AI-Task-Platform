@@ -1,0 +1,144 @@
+# docker-compose.yml — local Mac orchestration for the AI Task Platform.
+#
+# Services:
+#   redis    — BullMQ queue backing store
+#   backend  — Node.js + Express API (artifacts/api-server)
+#   worker   — Python BullMQ consumer (worker/)
+#   frontend — React + Vite SPA built and served via nginx (artifacts/web)
+#
+# MongoDB is intentionally external — point MONGODB_URI at MongoDB Atlas or
+# a local mongod (`brew install mongodb-community`). Running Mongo in Docker
+# is also fine; just override MONGODB_URI in your .env to mongodb://mongo:27017
+# and uncomment the mongo service block at the bottom of this file.
+#
+# Quick start:
+#   1. cp .env.example .env  (then edit MONGODB_URI / JWT_SECRET)
+#   2. docker compose up --build
+#   3. Open http://localhost:8080
+#
+# In production this whole stack is also deployed via the Kubernetes manifests
+# under infra/k8s/. The Dockerfiles are shared between dev/compose and prod/K8s.
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: aitask-redis
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - aitask
+
+  backend:
+    container_name: aitask-backend
+    build:
+      context: .
+      dockerfile: infra/docker/api-server.Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DB_NAME: ${MONGODB_DB_NAME:-taskplatform}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      BULL_QUEUE_NAME: ${BULL_QUEUE_NAME:-task-queue}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - aitask
+
+  worker:
+    container_name: aitask-worker
+    build:
+      context: .
+      dockerfile: infra/docker/worker.Dockerfile
+    environment:
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DB_NAME: ${MONGODB_DB_NAME:-taskplatform}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      BULL_QUEUE_NAME: ${BULL_QUEUE_NAME:-task-queue}
+      WORKER_PORT: "8008"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "8008:8008"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "python -c \"import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8008/healthz').status==200 else 1)\""
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - aitask
+
+  frontend:
+    container_name: aitask-frontend
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    # nginx in the image listens on 8080; expose it on 5173 on the host so it
+    # doesn't clash with the backend.
+    ports:
+      - "5173:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - aitask
+
+  # Optional: uncomment to run Mongo locally in Docker instead of using Atlas.
+  # Then set MONGODB_URI=mongodb://mongo:27017 in your .env file.
+  #
+  # mongo:
+  #   image: mongo:7
+  #   container_name: aitask-mongo
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongo-data:/data/db
+  #   networks:
+  #     - aitask
+
+networks:
+  aitask:
+    driver: bridge
+
+# volumes:
+#   mongo-data:

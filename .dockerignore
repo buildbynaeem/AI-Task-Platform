@@ -1,0 +1,57 @@
+# Repo-root .dockerignore.
+# All three Dockerfiles use the repo root as their build context, so this
+# applies to every image build.
+
+# Dependency artifacts — re-installed inside the image
+**/node_modules
+**/.pnpm-store
+**/.yarn
+**/.npm
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Build outputs — re-built inside the image
+**/dist
+**/build
+**/.next
+**/.turbo
+**/.cache
+
+# IDE / OS / VCS noise
+.git
+.gitignore
+.github
+.vscode
+.idea
+**/.DS_Store
+**/Thumbs.db
+
+# Local-only files we never want baked into images
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+
+# Replit-specific workspace metadata
+.local
+.replit-artifact
+**/.replit-artifact
+.upm
+.config
+
+# Logs / tmp
+**/logs
+**/*.log
+**/tmp
+attached_assets
+
+# Test outputs
+**/coverage
+**/playwright-report
+**/test-results
