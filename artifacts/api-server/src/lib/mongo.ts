@@ -9,6 +9,7 @@ export async function connectMongo(): Promise<void> {
   mongoose.set("strictQuery", true);
   await mongoose.connect(env.MONGODB_URI, {
     serverSelectionTimeoutMS: 10000,
+    dbName: env.MONGODB_DB_NAME,
   });
   connected = true;
   logger.info("MongoDB connected");

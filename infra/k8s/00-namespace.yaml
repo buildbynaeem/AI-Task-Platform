@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-task-platform
+  labels:
+    name: ai-task-platform
+    app.kubernetes.io/part-of: ai-task-platform

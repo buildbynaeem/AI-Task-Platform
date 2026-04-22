@@ -31,13 +31,14 @@ logging.basicConfig(
 log = logging.getLogger("worker")
 
 MONGODB_URI = os.environ["MONGODB_URI"]
+MONGODB_DB_NAME = os.environ.get("MONGODB_DB_NAME", "taskplatform")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")
 QUEUE_NAME = os.environ.get("BULL_QUEUE_NAME", "task-queue")
 HEALTHZ_PORT = int(os.environ.get("WORKER_PORT", "8008"))
 
-# MongoDB - use the database from the URI; default DB name "test" if not set.
+# MongoDB - explicitly pin to MONGODB_DB_NAME to avoid mismatch with API server.
 mongo_client: MongoClient = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000)
-mongo_db = mongo_client.get_default_database(default="taskplatform")
+mongo_db = mongo_client[MONGODB_DB_NAME]
 tasks: Collection = mongo_db["tasks"]
 
 

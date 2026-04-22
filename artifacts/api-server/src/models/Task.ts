@@ -1,4 +1,4 @@
-import { Schema, model, Types, type InferSchemaType, type Model } from "mongoose";
+import { Schema, model, type InferSchemaType, type Model } from "mongoose";
 
 export const TASK_OPERATIONS = ["uppercase", "lowercase", "reverse", "wordcount"] as const;
 export type TaskOperation = (typeof TASK_OPERATIONS)[number];
@@ -17,7 +17,7 @@ const logEntrySchema = new Schema(
 
 const taskSchema = new Schema(
   {
-    userId: { type: Types.ObjectId, ref: "User", required: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     title: { type: String, required: true, trim: true },
     input: { type: String, required: true },
     operation: { type: String, enum: TASK_OPERATIONS, required: true },

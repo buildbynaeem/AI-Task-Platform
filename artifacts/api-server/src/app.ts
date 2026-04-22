@@ -39,6 +39,8 @@ app.use("/api", apiLimiter);
 
 // Top-level healthz (for Kubernetes liveness/readiness probes)
 app.use(healthRouter);
+// Also expose under /api for the Replit proxy and frontend
+app.use("/api", healthRouter);
 
 app.use("/api", router);
 

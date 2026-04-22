@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: ai-task-platform
+  labels:
+    app.kubernetes.io/part-of: ai-task-platform
+data:
+  REDIS_URL: "redis://redis.ai-task-platform.svc.cluster.local:6379"
+  BULL_QUEUE_NAME: "task-queue"
+  MONGODB_DB_NAME: "taskplatform"
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  WORKER_PORT: "8008"

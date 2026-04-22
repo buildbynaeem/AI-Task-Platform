@@ -1,0 +1,47 @@
+# Ingress assumes an nginx-ingress controller is installed in the cluster.
+# Adjust `host` and TLS configuration for your environment.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-task-platform
+  namespace: ai-task-platform
+  labels:
+    app.kubernetes.io/part-of: ai-task-platform
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # Forward client IP so express-rate-limit can key off real users.
+    nginx.ingress.kubernetes.io/enable-real-ip: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ai-task-platform.example.com
+      secretName: ai-task-platform-tls
+  rules:
+    - host: ai-task-platform.example.com
+      http:
+        paths:
+          # API and healthz traffic goes to the api-server.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-server
+                port:
+                  number: 80
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: api-server
+                port:
+                  number: 80
+          # Everything else is the static web SPA.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80
