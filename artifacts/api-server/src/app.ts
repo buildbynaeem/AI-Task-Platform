@@ -1,4 +1,6 @@
-import express, { type Express } from "express";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import express, { type Express, type Request, type Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -43,5 +45,39 @@ app.use(healthRouter);
 app.use("/api", healthRouter);
 
 app.use("/api", router);
+
+// In production, also serve the built React frontend from the same process so
+// the whole app can deploy to a single port (required for Autoscale / Cloud Run).
+// The Vite build is emitted to artifacts/web/dist/public and copied alongside
+// the api-server bundle in production.
+if (process.env["NODE_ENV"] === "production") {
+  const candidates = [
+    path.resolve(process.cwd(), "artifacts/web/dist/public"),
+    path.resolve(process.cwd(), "dist/public"),
+    path.resolve(process.cwd(), "public"),
+  ];
+  const webRoot = candidates.find((p) => existsSync(p));
+  if (webRoot) {
+    logger.info({ webRoot }, "Serving static frontend");
+    app.use(
+      express.static(webRoot, {
+        index: false,
+        maxAge: "1y",
+        setHeaders(res, filePath) {
+          if (filePath.endsWith("index.html")) {
+            res.setHeader("Cache-Control", "no-store");
+          }
+        },
+      }),
+    );
+    // SPA fallback: any non-/api route returns index.html so client-side
+    // routing (e.g. /auth) works on direct loads and refreshes.
+    app.get(/^\/(?!api\/|healthz$).*/, (_req: Request, res: Response) => {
+      res.sendFile(path.join(webRoot, "index.html"));
+    });
+  } else {
+    logger.warn({ candidates }, "No built frontend found; only API is served");
+  }
+}
 
 export default app;

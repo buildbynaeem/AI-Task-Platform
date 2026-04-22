@@ -17,14 +17,9 @@ localPort = 22333
 [services.development]
 run = "pnpm --filter @workspace/web run dev"
 
-[services.production]
-build = [ "pnpm", "--filter", "@workspace/web", "run", "build" ]
-publicDir = "artifacts/web/dist/public"
-serve = "static"
-
-[[services.production.rewrites]]
-from = "/*"
-to = "/index.html"
+# No [services.production] block: in production the api-server artifact
+# serves the built SPA from a single Node process on port 8080. This avoids
+# having multiple deployable ports, which Autoscale / Cloud Run forbids.
 
 [services.env]
 PORT = "22333"

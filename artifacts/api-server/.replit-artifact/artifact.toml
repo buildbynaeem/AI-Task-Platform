@@ -7,6 +7,9 @@ id = "3B4_FFSkEVBkAeYMFRJ2e"
 [[services]]
 localPort = 8080
 name = "API Server"
+# In production this single service serves both the JSON API (/api/*) and the
+# built React SPA (everything else). In development the web artifact still
+# serves /, so production-only path coverage is encoded via the build/run.
 paths = ["/api"]
 
 [services.development]
@@ -14,18 +17,32 @@ run = "pnpm --filter @workspace/api-server run dev"
 
 [services.production]
 
+# Build the web frontend first so its dist/public is available to the
+# api-server process, then build the api-server bundle.
 [services.production.build]
-args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
+args = [
+  "pnpm",
+  "-r",
+  "--filter",
+  "@workspace/web",
+  "--filter",
+  "@workspace/api-server",
+  "run",
+  "build",
+]
 
 [services.production.build.env]
 NODE_ENV = "production"
+# Required by artifacts/web/vite.config.ts at build time. The runtime PORT
+# below is what actually matters for serving traffic.
+PORT = "22333"
+BASE_PATH = "/"
 
 [services.production.run]
 # we don't run through pnpm to make startup faster in production
 args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
 
 [services.production.run.env]
-PORT = "8080"
 NODE_ENV = "production"
 
 [services.production.health.startup]
