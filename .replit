@@ -1,12 +1,12 @@
 modules = ["nodejs-24", "python-3.11"]
 
 [deployment]
+run = "node artifacts/api-server/dist/index.mjs"
 router = "application"
 deploymentTarget = "autoscale"
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
-env = { "CI" = "true" }
 
 [workflows]
 runButton = "Project"
@@ -33,49 +33,25 @@ task = "shell.exec"
 args = "cd worker && python main.py"
 waitForPort = 8008
 
-[workflows.workflow.metadata]
-outputType = "console"
-
 [[workflows.workflow]]
 name = "Redis"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "redis-server --port 6379 --bind 127.0.0.1 --save \"\" --appendonly no"
-
-[workflows.workflow.metadata]
-outputType = "console"
+args = "redis-server --port 6379 --bind 127.0.0.1 --save '' --appendonly no"
 
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
 
-[postMerge]
-path = "scripts/post-merge.sh"
-timeoutMs = 20000
-
-[[ports]]
-localPort = 8008
-externalPort = 8008
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 8081
-externalPort = 80
-
-[[ports]]
-localPort = 22333
-externalPort = 3000
-
 [nix]
 channel = "stable-25_05"
 
-[userenv]
-
 [userenv.shared]
 REDIS_URL = "redis://127.0.0.1:6379"
-BULL_QUEUE_NAME = "task-queue"
+BULL_QUEUE_NAME = "ta"
+
+[[ports]]
+localPort = 8080
+externalPort = 80
