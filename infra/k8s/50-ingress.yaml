@@ -29,14 +29,14 @@ spec:
               service:
                 name: api-server
                 port:
-                  number: 80
+                  number: 5000
           - path: /healthz
             pathType: Exact
             backend:
               service:
                 name: api-server
                 port:
-                  number: 80
+                  number: 5000
           # Everything else is the static web SPA.
           - path: /
             pathType: Prefix
@@ -44,4 +44,4 @@ spec:
               service:
                 name: web
                 port:
-                  number: 80
+                  number: 3000

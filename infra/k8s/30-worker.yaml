@@ -19,6 +19,10 @@ spec:
       app.kubernetes.io/name: worker
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/healthz"
       labels:
         app.kubernetes.io/name: worker
         app.kubernetes.io/part-of: ai-task-platform
@@ -36,7 +40,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 8008
+              containerPort: 8080
           envFrom:
             - configMapRef:
                 name: app-config
@@ -45,10 +49,10 @@ spec:
           resources:
             requests:
               cpu: "100m"
-              memory: "256Mi"
+              memory: "128Mi"
             limits:
-              cpu: "1500m"
-              memory: "768Mi"
+              cpu: "500m"
+              memory: "256Mi"
           startupProbe:
             httpGet:
               path: /healthz
@@ -89,7 +93,7 @@ spec:
     app.kubernetes.io/name: worker
   ports:
     - name: http
-      port: 80
+      port: 8080
       targetPort: http
 ---
 apiVersion: autoscaling/v2
@@ -106,7 +110,7 @@ spec:
     kind: Deployment
     name: worker
   minReplicas: 2
-  maxReplicas: 20
+  maxReplicas: 10
   metrics:
     - type: Resource
       resource:

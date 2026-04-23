@@ -43,10 +43,12 @@ kubectl create secret generic app-secrets \
   --namespace ai-task-platform \
   --from-literal=MONGODB_URI="mongodb+srv://USER:PASS@cluster.example.net/" \
   --from-literal=JWT_SECRET="$(openssl rand -hex 32)" \
+  --from-literal=GRAFANA_PASSWORD="admin" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # 3. Apply everything else
 kubectl apply -f infra/k8s/
+kubectl apply -f infra/k8s/monitoring/
 ```
 
 Update the image references in `20-api-server.yaml`, `30-worker.yaml`, and

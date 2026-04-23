@@ -55,3 +55,8 @@ attached_assets
 **/coverage
 **/playwright-report
 **/test-results
+
+# Tooling
+.trae
+pnpm-lock.yaml
+pnpm-workspace.yaml

@@ -17,6 +17,7 @@ from typing import Any
 import uvicorn
 from bson import ObjectId
 from bullmq import Worker
+from dotenv import load_dotenv
 from fastapi import FastAPI, Response
 from pymongo import MongoClient
 from pymongo.collection import Collection
@@ -24,17 +25,23 @@ from redis.asyncio import Redis
 
 from processor import process_operation
 
+# Load environment variables from .env file
+load_dotenv()
+
 logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "INFO"),
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s %(levelname)s %(name)s :: %(message)s",
 )
 log = logging.getLogger("worker")
 
-MONGODB_URI = os.environ["MONGODB_URI"]
+MONGODB_URI = os.environ.get("MONGODB_URI")
+if not MONGODB_URI:
+    raise RuntimeError("MONGODB_URI environment variable is required")
+
 MONGODB_DB_NAME = os.environ.get("MONGODB_DB_NAME", "taskplatform")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")
 QUEUE_NAME = os.environ.get("BULL_QUEUE_NAME", "task-queue")
-HEALTHZ_PORT = int(os.environ.get("WORKER_PORT", "8008"))
+HEALTHZ_PORT = int(os.environ.get("WORKER_PORT", "8080"))
 
 # MongoDB - explicitly pin to MONGODB_DB_NAME to avoid mismatch with API server.
 mongo_client: MongoClient = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000)
@@ -129,24 +136,39 @@ worker_state: dict[str, Any] = {"worker": None, "redis_ok": False, "mongo_ok": F
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    redis = Redis.from_url(REDIS_URL)
-    try:
-        await redis.ping()
-        worker_state["redis_ok"] = True
-        log.info("Redis ping OK at %s", REDIS_URL)
-    except Exception as exc:  # noqa: BLE001
-        log.error("Redis ping failed: %s", exc)
-        worker_state["redis_ok"] = False
-    finally:
-        await redis.aclose()
+    # Try to connect to Redis with retries
+    redis_connected = False
+    for i in range(10):
+        try:
+            redis = Redis.from_url(REDIS_URL)
+            await redis.ping()
+            worker_state["redis_ok"] = True
+            log.info("Redis ping OK at %s", REDIS_URL)
+            await redis.aclose()
+            redis_connected = True
+            break
+        except Exception as exc:  # noqa: BLE001
+            log.warn("Redis ping failed (attempt %d/10): %s", i + 1, exc)
+            await asyncio.sleep(3)
+    
+    if not redis_connected:
+        log.error("Failed to connect to Redis after 10 attempts")
 
-    try:
-        mongo_client.admin.command("ping")
-        worker_state["mongo_ok"] = True
-        log.info("Mongo ping OK")
-    except Exception as exc:  # noqa: BLE001
-        log.error("Mongo ping failed: %s", exc)
-        worker_state["mongo_ok"] = False
+    # Try to connect to Mongo with retries
+    mongo_connected = False
+    for i in range(10):
+        try:
+            mongo_client.admin.command("ping")
+            worker_state["mongo_ok"] = True
+            log.info("Mongo ping OK")
+            mongo_connected = True
+            break
+        except Exception as exc:  # noqa: BLE001
+            log.warn("Mongo ping failed (attempt %d/10): %s", i + 1, exc)
+            await asyncio.sleep(3)
+    
+    if not mongo_connected:
+        log.error("Failed to connect to Mongo after 10 attempts")
 
     worker = Worker(
         QUEUE_NAME,

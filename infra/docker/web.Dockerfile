@@ -14,19 +14,19 @@ FROM node:${NODE_VERSION}-alpine AS builder
 ENV PNPM_HOME=/pnpm \
     PATH="/pnpm:$PATH" \
     CI=true \
-    PORT=22333 \
+    PORT=3000 \
     BASE_PATH=/
 RUN corepack enable
 
 WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY artifacts/web/package.json artifacts/web/package.json
+COPY frontend/package.json frontend/package.json
 COPY lib lib
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @workspace/web...
 
-COPY artifacts/web artifacts/web
+COPY frontend frontend
 RUN pnpm --filter @workspace/web run build
 
 ############################
@@ -36,7 +36,7 @@ FROM nginxinc/nginx-unprivileged:${NGINX_VERSION} AS runtime
 
 # nginxinc/nginx-unprivileged runs as uid 101 by default and listens on 8080.
 COPY infra/docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder --chown=101:101 /repo/artifacts/web/dist/public /usr/share/nginx/html
+COPY --from=builder --chown=101:101 /repo/frontend/dist/public /usr/share/nginx/html
 
 EXPOSE 8080
 # CMD inherited from upstream image.

@@ -19,6 +19,10 @@ spec:
       app.kubernetes.io/name: api-server
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/healthz"
       labels:
         app.kubernetes.io/name: api-server
         app.kubernetes.io/part-of: ai-task-platform
@@ -36,10 +40,10 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 5000
           env:
             - name: PORT
-              value: "8080"
+              value: "5000"
           envFrom:
             - configMapRef:
                 name: app-config
@@ -92,7 +96,7 @@ spec:
     app.kubernetes.io/name: api-server
   ports:
     - name: http
-      port: 80
+      port: 5000
       targetPort: http
 ---
 apiVersion: autoscaling/v2

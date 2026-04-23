@@ -24,3 +24,6 @@ attached_assets
 **/.replit-artifact
 **/tmp
 **/logs
+.trae
+pnpm-lock.yaml
+pnpm-workspace.yaml

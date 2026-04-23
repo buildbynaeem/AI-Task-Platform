@@ -29,7 +29,7 @@ FROM python:${PYTHON_VERSION}-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    WORKER_PORT=8008
+    WORKER_PORT=8080
 
 # Create unprivileged user for the runtime container.
 RUN groupadd --system --gid 1001 worker \
@@ -42,6 +42,6 @@ WORKDIR /app
 COPY --chown=worker:worker worker/ /app/
 
 USER worker
-EXPOSE 8008
+EXPOSE 8080
 
 CMD ["python", "main.py"]

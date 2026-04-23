@@ -46,7 +46,7 @@ services:
       dockerfile: infra/docker/api-server.Dockerfile
     environment:
       NODE_ENV: production
-      PORT: "8080"
+      PORT: "5000"
       MONGODB_URI: ${MONGODB_URI}
       MONGODB_DB_NAME: ${MONGODB_DB_NAME:-taskplatform}
       JWT_SECRET: ${JWT_SECRET}
@@ -54,16 +54,14 @@ services:
       BULL_QUEUE_NAME: ${BULL_QUEUE_NAME:-task-queue}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
-      - "8080:8080"
+      - "5000:5000"
     depends_on:
       redis:
         condition: service_healthy
+      mongo:
+        condition: service_healthy
     healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://localhost:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5000/healthz').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -82,17 +80,19 @@ services:
       MONGODB_DB_NAME: ${MONGODB_DB_NAME:-taskplatform}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       BULL_QUEUE_NAME: ${BULL_QUEUE_NAME:-task-queue}
-      WORKER_PORT: "8008"
+      WORKER_PORT: "8080"
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
-      - "8008:8008"
+      - "8080:8080"
     depends_on:
       redis:
+        condition: service_healthy
+      mongo:
         condition: service_healthy
     healthcheck:
       test:
         - CMD-SHELL
-        - "python -c \"import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8008/healthz').status==200 else 1)\""
+        - "python -c \"import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz').status==200 else 1)\""
       interval: 10s
       timeout: 5s
       retries: 6
@@ -106,15 +106,13 @@ services:
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
-    # nginx in the image listens on 8080; expose it on 5173 on the host so it
-    # doesn't clash with the backend.
     ports:
-      - "5173:8080"
+      - "3000:8080"
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep ok || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -123,22 +121,25 @@ services:
     networks:
       - aitask
 
-  # Optional: uncomment to run Mongo locally in Docker instead of using Atlas.
-  # Then set MONGODB_URI=mongodb://mongo:27017 in your .env file.
-  #
-  # mongo:
-  #   image: mongo:7
-  #   container_name: aitask-mongo
-  #   ports:
-  #     - "27017:27017"
-  #   volumes:
-  #     - mongo-data:/data/db
-  #   networks:
-  #     - aitask
+  mongo:
+    image: mongo:7
+    container_name: aitask-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - aitask
 
 networks:
   aitask:
     driver: bridge
 
-# volumes:
-#   mongo-data:
+volumes:
+  mongo-data:

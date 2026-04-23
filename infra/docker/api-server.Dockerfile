@@ -19,7 +19,7 @@ WORKDIR /repo
 
 # Copy workspace manifests first so the dep layer is cacheable.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY artifacts/api-server/package.json artifacts/api-server/package.json
+COPY backend/package.json backend/package.json
 COPY lib lib
 
 # Install workspace dependencies (frozen lockfile in CI).
@@ -27,7 +27,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @workspace/api-server...
 
 # Bring in the api-server source and build it.
-COPY artifacts/api-server artifacts/api-server
+COPY backend backend
 RUN pnpm --filter @workspace/api-server run build
 
 ############################
@@ -36,16 +36,16 @@ RUN pnpm --filter @workspace/api-server run build
 FROM node:${NODE_VERSION}-alpine AS runtime
 
 ENV NODE_ENV=production \
-    PORT=8080
+    PORT=5000
 
 # Run as the unprivileged "node" user that ships with the official image.
 WORKDIR /app
 # esbuild produces a self-contained bundle, so we only need dist/ at runtime.
-COPY --from=builder --chown=node:node /repo/artifacts/api-server/dist ./dist
-COPY --from=builder --chown=node:node /repo/artifacts/api-server/package.json ./package.json
+COPY --from=builder --chown=node:node /repo/backend/dist ./dist
+COPY --from=builder --chown=node:node /repo/backend/package.json ./package.json
 
 USER node
-EXPOSE 8080
+EXPOSE 5000
 
 # /healthz is served by Express; rely on Kubernetes for probes.
 CMD ["node", "--enable-source-maps", "dist/index.mjs"]
