@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import express, { type Express, type Request, type Response } from "express";
 import cors from "cors";
-import helmet from "helmet";
+import * as helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import { pinoHttp } from "pino-http";
 import router from "./routes";
@@ -13,9 +13,9 @@ const app: Express = express();
 
 app.set("trust proxy", 1);
 
-app.use(helmet());
+app.use((helmet as any)());
 app.use(
-  pinoHttp({
+  (pinoHttp as any)({
     logger,
     serializers: {
       req(req: any) {
@@ -31,7 +31,7 @@ app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-const apiLimiter = rateLimit({
+const apiLimiter = (rateLimit as any)({
   windowMs: 60 * 1000,
   limit: 120,
   standardHeaders: "draft-7",
