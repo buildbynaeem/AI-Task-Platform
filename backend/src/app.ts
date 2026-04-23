@@ -3,8 +3,8 @@ import path from "node:path";
 import express, { type Express, type Request, type Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
-import pinoHttp from "pino-http";
+import { rateLimit } from "express-rate-limit";
+import { pinoHttp } from "pino-http";
 import router from "./routes";
 import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
@@ -18,10 +18,10 @@ app.use(
   pinoHttp({
     logger,
     serializers: {
-      req(req) {
+      req(req: any) {
         return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
       },
-      res(res) {
+      res(res: any) {
         return { statusCode: res.statusCode };
       },
     },
